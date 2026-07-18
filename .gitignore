@@ -1,0 +1,26 @@
+# Environments
+.env
+.venv
+env/
+venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+
+# Project specific temporary files
+realistic_medical_report.jpg
+chroma_db/
+*.log
+
+# Node (Catch-all)
+node_modules/
+dist/
+dist-ssr/
+*.local

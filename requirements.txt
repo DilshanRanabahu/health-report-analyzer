@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+crewai
+crewai-tools
+langchain-google-genai
+langchain-huggingface
+chromadb
+pdfplumber
+Pillow
