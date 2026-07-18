@@ -9,7 +9,6 @@ export default function ReportView({ selectedReport }) {
   const handleDownloadPDF = () => {
     const element = document.getElementById('pdf-content');
     
-    // Add a temporary class for PDF generation to handle text colors/backgrounds specifically for print if needed
     element.classList.add('pdf-export-mode');
 
     const opt = {
@@ -23,6 +22,20 @@ export default function ReportView({ selectedReport }) {
     html2pdf().set(opt).from(element).save().then(() => {
       element.classList.remove('pdf-export-mode');
     });
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    if (dateString.includes(',')) return dateString; 
+    try {
+      const d = new Date(dateString);
+      return d.toLocaleString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', hour12: true
+      });
+    } catch(e) {
+      return dateString;
+    }
   };
 
   return (
@@ -40,7 +53,7 @@ export default function ReportView({ selectedReport }) {
               {selectedReport.filename}
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Analyzed on {selectedReport.date}
+              Analyzed on {formatDate(selectedReport.date)}
             </p>
           </div>
           <button 
