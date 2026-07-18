@@ -7,8 +7,11 @@ import Sidebar from './components/layout/Sidebar';
 import UploadZone from './components/upload/UploadZone';
 import ReportView from './components/report/ReportView';
 import Loader from './components/common/Loader';
+import { useToast } from './context/ToastContext';
 
 function App() {
+  const { addToast } = useToast();
+
   // Application State
   const [currentView, setCurrentView] = useState('upload'); // 'upload' or 'report'
   const [reportsHistory, setReportsHistory] = useState([]);
@@ -17,7 +20,6 @@ function App() {
   // Upload State
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
 
   // Load history from API on mount
   useEffect(() => {
@@ -29,7 +31,7 @@ function App() {
       const response = await axios.get('http://127.0.0.1:8000/api/reports');
       setReportsHistory(response.data);
     } catch (err) {
-      console.error("Failed to load history from database:", err);
+      addToast('Failed to load history from database. Make sure backend is running.', 'error');
     }
   };
 
@@ -41,14 +43,12 @@ function App() {
     e.preventDefault();
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
-      setError(null);
     }
   };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
-      setError(null);
     }
   };
 
@@ -56,7 +56,6 @@ function App() {
     if (!file) return;
 
     setLoading(true);
-    setError(null);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -84,12 +83,12 @@ function App() {
         
         // Reset upload state
         setFile(null);
+        addToast('Report analyzed and saved successfully!', 'success');
       } else {
-        setError('Received an empty response from the AI.');
+        addToast('Received an empty response from the AI.', 'error');
       }
     } catch (err) {
-      console.error(err);
-      setError('An error occurred while analyzing the report. Please ensure the backend server is running.');
+      addToast('An error occurred while analyzing the report. Please ensure the backend server is running.', 'error');
     } finally {
       setLoading(false);
     }
@@ -105,8 +104,9 @@ function App() {
       if (selectedReport && selectedReport.id === reportId) {
         startNewReport();
       }
+      addToast('Report deleted permanently.', 'success');
     } catch (err) {
-      console.error("Failed to delete report:", err);
+      addToast('Failed to delete report.', 'error');
     }
   };
 
@@ -117,7 +117,6 @@ function App() {
 
   const startNewReport = () => {
     setFile(null);
-    setError(null);
     setSelectedReport(null);
     setCurrentView('upload');
   };
@@ -140,7 +139,6 @@ function App() {
               {currentView === 'upload' && !loading && (
                 <UploadZone 
                   file={file}
-                  error={error}
                   handleFileChange={handleFileChange}
                   handleDrop={handleDrop}
                   handleUpload={handleUpload}

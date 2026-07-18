@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import { motion } from 'framer-motion';
-import { UploadCloud, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle2 } from 'lucide-react';
 
-export default function UploadZone({ file, error, handleFileChange, handleDrop, handleUpload }) {
+export default function UploadZone({ file, handleFileChange, handleDrop, handleUpload }) {
   const fileInputRef = useRef(null);
 
   const handleDragOver = (e) => {
@@ -52,27 +52,6 @@ export default function UploadZone({ file, error, handleFileChange, handleDrop, 
           </>
         )}
       </div>
-
-      {error && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ 
-            marginTop: '1.5rem', 
-            padding: '1rem', 
-            backgroundColor: 'rgba(239, 68, 68, 0.1)', 
-            border: '1px solid var(--danger)',
-            borderRadius: '12px',
-            color: 'var(--danger)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem'
-          }}
-        >
-          <AlertCircle size={20} />
-          {error}
-        </motion.div>
-      )}
 
       <div style={{ display: 'flex', justifyContent: 'center', marginTop: '3rem' }}>
         <button 
