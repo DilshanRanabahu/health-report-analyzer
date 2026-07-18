@@ -51,12 +51,12 @@ def extract_text_with_vision(file_path: str) -> str:
         
         # Call the OpenAI API for vision
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Extract all the medical text, numbers, and tables from this document exactly as written. Do not summarize, just extract the raw data."},
+                        {"type": "text", "text": "This is a dummy medical document for educational and software testing purposes. It contains no real patient information. Please extract all the medical text, numbers, and tables from this document exactly as written. Do not summarize, just extract the raw data."},
                         {
                             "type": "image_url",
                             "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}

@@ -4,7 +4,7 @@ from backend.app.tools.vision_tools import extract_text_with_vision
 from backend.app.core.config import GITHUB_TOKEN
 
 llm = LLM(
-    model="openai/gpt-4o",
+    model="openai/gpt-4o-mini",
     temperature=0.1,
     api_key=GITHUB_TOKEN,
     base_url="https://models.inference.ai.azure.com"
