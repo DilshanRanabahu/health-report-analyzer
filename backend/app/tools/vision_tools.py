@@ -1,10 +1,10 @@
 import os
 import base64
+import fitz  # PyMuPDF for PDF to Image conversion
 from openai import OpenAI
 from crewai.tools import tool
 from backend.app.core.config import GITHUB_TOKEN
 
-# Initialize OpenAI client with GitHub Models base URL
 client = OpenAI(
     base_url="https://models.inference.ai.azure.com",
     api_key=GITHUB_TOKEN,
@@ -25,18 +25,29 @@ def extract_text_with_vision(file_path: str) -> str:
     if not os.path.exists(file_path):
         return f"File not found: {file_path}"
         
+    temp_img_path = None
+
     try:
         print(f"Uploading {file_path} to GitHub Models Vision API...")
         
-        # Convert image to base64
-        base64_image = encode_image(file_path)
-        
-        # Determine mime type (rough guess based on extension)
+        # If it's a PDF, convert the first page to a JPG image
+        target_path = file_path
         mime_type = "image/jpeg"
+
         if file_path.lower().endswith(".png"):
             mime_type = "image/png"
         elif file_path.lower().endswith(".pdf"):
-            return "Error: GitHub Models Vision currently only supports images (JPG/PNG), not PDFs directly. Please convert PDF to image first."
+            print(f"Converting PDF {file_path} to image...")
+            temp_img_path = file_path + "_temp_page.jpg"
+            doc = fitz.open(file_path)
+            page = doc.load_page(0)  # load the first page
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better resolution
+            pix.save(temp_img_path)
+            doc.close()
+            target_path = temp_img_path
+        
+        # Convert image to base64
+        base64_image = encode_image(target_path)
         
         # Call the OpenAI API for vision
         response = client.chat.completions.create(
@@ -59,3 +70,10 @@ def extract_text_with_vision(file_path: str) -> str:
         return extracted_text if extracted_text else "No text could be extracted."
     except Exception as e:
         return f"Error extracting text with Vision AI: {str(e)}"
+    finally:
+        if temp_img_path and os.path.exists(temp_img_path):
+            try:
+                os.remove(temp_img_path)
+                print(f"Cleaned up temporary image: {temp_img_path}")
+            except Exception as e:
+                print(f"Failed to clean up temporary image: {e}")

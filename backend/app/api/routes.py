@@ -31,14 +31,11 @@ async def analyze_report(file: UploadFile = File(...)):
             verbose=True
         )
         
-        # Start the Crew AI process asynchronously to avoid event loop conflicts in FastAPI
         print("Starting Medical Analysis Crew...")
         result = await medical_crew.kickoff_async()
         
         os.remove(file_path)
         
-        # We need to extract the string representation of the CrewOutput object
-        # CrewOutput has a raw property containing the final string
         output_text = str(result.raw) if hasattr(result, 'raw') else str(result)
         
         return {"status": "success", "result": output_text}
