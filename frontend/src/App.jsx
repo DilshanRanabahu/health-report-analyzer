@@ -19,18 +19,19 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load history from localStorage on mount
+  // Load history from API on mount
   useEffect(() => {
-    const savedHistory = localStorage.getItem('medicalReportsHistory');
-    if (savedHistory) {
-      setReportsHistory(JSON.parse(savedHistory));
-    }
+    fetchHistory();
   }, []);
 
-  // Save history to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem('medicalReportsHistory', JSON.stringify(reportsHistory));
-  }, [reportsHistory]);
+  const fetchHistory = async () => {
+    try {
+      const response = await axios.get('http://127.0.0.1:8000/api/reports');
+      setReportsHistory(response.data);
+    } catch (err) {
+      console.error("Failed to load history from database:", err);
+    }
+  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -68,15 +69,15 @@ function App() {
       });
 
       if (response.data && response.data.result) {
-        // Create new report record
+        // API returns the newly created DB record details
         const newReport = {
-          id: Date.now().toString(),
-          filename: file.name,
-          date: new Date().toLocaleDateString('en-GB'),
+          id: response.data.id,
+          filename: response.data.filename,
+          date: response.data.date,
           result: response.data.result
         };
         
-        // Add to history and show it
+        // Add to history state immediately
         setReportsHistory([newReport, ...reportsHistory]);
         setSelectedReport(newReport);
         setCurrentView('report');
@@ -91,6 +92,21 @@ function App() {
       setError('An error occurred while analyzing the report. Please ensure the backend server is running.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteReport = async (reportId, e) => {
+    if (e) e.stopPropagation();
+    try {
+      await axios.delete(`http://127.0.0.1:8000/api/reports/${reportId}`);
+      
+      // Update UI
+      setReportsHistory(reportsHistory.filter(r => r.id !== reportId));
+      if (selectedReport && selectedReport.id === reportId) {
+        startNewReport();
+      }
+    } catch (err) {
+      console.error("Failed to delete report:", err);
     }
   };
 
@@ -114,6 +130,7 @@ function App() {
         loading={loading}
         viewReport={viewReport}
         startNewReport={startNewReport}
+        deleteReport={handleDeleteReport}
       />
 
       <main className="main-content">

@@ -1,6 +1,6 @@
-import { Plus, FileHeart } from 'lucide-react';
+import { Plus, FileHeart, Trash2 } from 'lucide-react';
 
-export default function Sidebar({ reportsHistory, selectedReport, loading, viewReport, startNewReport }) {
+export default function Sidebar({ reportsHistory, selectedReport, loading, viewReport, startNewReport, deleteReport }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -21,8 +21,17 @@ export default function Sidebar({ reportsHistory, selectedReport, loading, viewR
               className={`history-item ${selectedReport?.id === report.id ? 'active' : ''}`}
               onClick={() => viewReport(report)}
             >
-              <FileHeart size={16} />
-              <span className="history-item-title">{report.filename}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
+                <FileHeart size={16} style={{ flexShrink: 0 }} />
+                <span className="history-item-title">{report.filename}</span>
+              </div>
+              <button 
+                className="delete-report-btn"
+                onClick={(e) => deleteReport(report.id, e)}
+                title="Delete Report"
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
           ))
         )}

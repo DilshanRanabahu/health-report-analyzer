@@ -104,6 +104,29 @@ body {
   flex: 1;
 }
 
+.delete-report-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.history-item:hover .delete-report-btn {
+  opacity: 1;
+}
+
+.delete-report-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
 /* Main Content */
 .main-content {
   flex: 1;
@@ -306,9 +329,36 @@ body {
   box-shadow: 0 0 15px var(--accent-glow);
 }
 
-/* PDF Export Specific Overrides (Optional) */
+/* PDF Export Specific Overrides - Making it an Eye-Care Dark Document */
 .pdf-export-mode {
-  padding: 20px !important;
-  background: #1e293b !important; /* Keep the nice dark theme for the PDF */
-  color: #f8fafc !important;
+  padding: 40px !important;
+  background: #1e293b !important; /* Soft dark color for eye comfort */
+  color: #f8fafc !important; /* Light text */
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+.pdf-export-mode h1, 
+.pdf-export-mode h2, 
+.pdf-export-mode h3 {
+  color: #e2e8f0 !important; /* Light grayish blue for headings */
+  border-bottom: 2px solid #334155 !important;
+  padding-bottom: 8px !important;
+  margin-top: 20px !important;
+}
+
+.pdf-export-mode p, 
+.pdf-export-mode li {
+  color: #cbd5e1 !important; /* Soft light text for reading */
+  line-height: 1.6 !important;
+}
+
+.pdf-export-mode strong {
+  color: #ffffff !important;
+}
+
+.pdf-export-mode hr {
+  border-top: 1px solid #334155 !important;
 }
