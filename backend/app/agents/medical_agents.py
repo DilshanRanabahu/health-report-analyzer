@@ -37,3 +37,12 @@ friendly_explainer = Agent(
     allow_delegation=False,
     llm=llm
 )
+
+dietitian_agent = Agent(
+    role="Diet & Lifestyle Specialist",
+    goal="Formulate personalized dietary and exercise plans based on the clinical analysis, focusing on Sri Lankan cuisine and practical habits.",
+    backstory="You are an expert nutritionist from Sri Lanka. You analyze abnormal health markers (like high cholesterol or high blood sugar) and provide practical, culturally relevant food alternatives. For example, suggesting 'Gotukola' or 'Kurakkan' instead of processed foods.",
+    verbose=True,
+    allow_delegation=False,
+    llm=llm
+)

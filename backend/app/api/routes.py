@@ -4,8 +4,11 @@ from sqlalchemy.orm import Session
 from backend.app.db.database import get_db
 from backend.app.db.models import Report
 from crewai import Crew
-from backend.app.agents.medical_agents import document_reader, health_analyst, friendly_explainer
+from backend.app.agents.medical_agents import document_reader, health_analyst, dietitian_agent, friendly_explainer
 from backend.app.agents.tasks import create_medical_tasks
+from backend.app.core.config import GITHUB_TOKEN
+from pydantic import BaseModel
+from openai import OpenAI
 import os
 import shutil
 import uuid
@@ -31,7 +34,7 @@ async def analyze_report(file: UploadFile = File(...), db: Session = Depends(get
         tasks = create_medical_tasks(file_path)
         
         medical_crew = Crew(
-            agents=[document_reader, health_analyst, friendly_explainer],
+            agents=[document_reader, health_analyst, dietitian_agent, friendly_explainer],
             tasks=tasks,
             verbose=True
         )
@@ -120,3 +123,37 @@ def delete_report(report_id: int, db: Session = Depends(get_db)):
     db.commit()
     
     return {"status": "success", "message": "Report deleted"}
+
+class ChatRequest(BaseModel):
+    message: str
+    report_context: str
+    history: list = []
+
+@router.post("/chat")
+def chat_with_report(request: ChatRequest):
+    client = OpenAI(
+        base_url="https://models.inference.ai.azure.com",
+        api_key=GITHUB_TOKEN,
+    )
+    
+    system_prompt = f"""You are a helpful Medical and Dietary AI assistant from Sri Lanka. 
+You are chatting with a patient about their medical report.
+Answer the user's questions in simple Sinhala based on the provided Medical Report Context.
+If the user asks a question completely unrelated to health, medicine, diet, or the report (e.g. sports, movies, politics), politely refuse to answer.
+
+Medical Report Context:
+{request.report_context}
+"""
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(request.history)
+    messages.append({"role": "user", "content": request.message})
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            temperature=0.3
+        )
+        return {"response": response.choices[0].message.content}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})

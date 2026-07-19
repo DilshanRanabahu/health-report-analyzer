@@ -1,9 +1,28 @@
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { FileHeart, Download } from 'lucide-react';
+import { FileHeart, Download, MessageSquare, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import html2pdf from 'html2pdf.js';
+import axios from 'axios';
 
 export default function ReportView({ selectedReport }) {
+  const [activeTab, setActiveTab] = useState('report');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatMessage, setChatMessage] = useState("");
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    setActiveTab('report');
+    setChatHistory([{ role: 'assistant', content: "ආයුබෝවන්! මම ඔබේ වෛද්‍ය සහායක. මේ රිපෝට් එක ගැන හරි, කෑම බීම ගැන හරි මොනවා හරි අහන්න තියෙනවද?" }]);
+  }, [selectedReport]);
+
+  useEffect(() => {
+    if (activeTab === 'chat' && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatHistory, activeTab]);
+
   if (!selectedReport) return null;
 
   const handleDownloadPDF = () => {
@@ -38,12 +57,47 @@ export default function ReportView({ selectedReport }) {
     }
   };
 
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!chatMessage.trim()) return;
+
+    const userMessage = chatMessage;
+    setChatMessage("");
+    setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
+    setIsChatLoading(true);
+
+    try {
+      const response = await axios.post("http://127.0.0.1:8000/api/chat", {
+        message: userMessage,
+        report_context: selectedReport.result,
+        history: chatHistory.slice(1) // skip the initial greeting
+      });
+      
+      setChatHistory(prev => [...prev, { role: 'assistant', content: response.data.response }]);
+    } catch (error) {
+      setChatHistory(prev => [...prev, { role: 'assistant', content: "සමාවෙන්න, මට ඒ ප්‍රශ්නයට පිළිතුරු දීමට අපහසුයි. නැවත උත්සාහ කරන්න." }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
+  const reportText = selectedReport.result || "";
+  let medicalPart = reportText;
+  let dietPart = "";
+
+  const splitIndex = reportText.indexOf("## 🥗");
+  if (splitIndex !== -1) {
+    medicalPart = reportText.substring(0, splitIndex).trim();
+    dietPart = reportText.substring(splitIndex).trim();
+  }
+
   return (
     <motion.div 
       key="report"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
+      style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
     >
       <div className="result-container">
         <div className="result-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -66,10 +120,67 @@ export default function ReportView({ selectedReport }) {
           </button>
         </div>
         
-        {/* We assign an ID here for html2pdf to target just the content, not the header/buttons */}
-        <div className="result-content" id="pdf-content">
-          <ReactMarkdown>{selectedReport.result}</ReactMarkdown>
+        <div className="tab-navigation">
+          <button 
+            className={`tab-btn ${activeTab === 'report' ? 'active' : ''}`}
+            onClick={() => setActiveTab('report')}
+          >
+            වෛද්‍ය වාර්තාව
+          </button>
+          {dietPart && (
+            <button 
+              className={`tab-btn ${activeTab === 'diet' ? 'active' : ''}`}
+              onClick={() => setActiveTab('diet')}
+            >
+              ආහාර සහ ජීවන රටාව
+            </button>
+          )}
+          <button 
+            className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <MessageSquare size={16} /> වෛද්‍යවරයාගෙන් අසන්න
+          </button>
         </div>
+
+        <div className="result-content" id="pdf-content" style={{ display: activeTab === 'chat' ? 'none' : 'block' }}>
+          <ReactMarkdown>
+            {activeTab === 'report' ? medicalPart : dietPart}
+          </ReactMarkdown>
+        </div>
+
+        {activeTab === 'chat' && (
+          <div className="chat-interface">
+            <div className="chat-messages">
+              {chatHistory.map((msg, idx) => (
+                <div key={idx} className={`chat-bubble ${msg.role}`}>
+                  <ReactMarkdown>{msg.content}</ReactMarkdown>
+                </div>
+              ))}
+              {isChatLoading && (
+                <div className="chat-bubble assistant typing">
+                  <div className="dot-typing"></div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            
+            <form onSubmit={handleSendMessage} className="chat-input-area">
+              <input 
+                type="text" 
+                value={chatMessage}
+                onChange={(e) => setChatMessage(e.target.value)}
+                placeholder="ඔබේ ප්‍රශ්නය මෙහි ලියන්න..."
+                className="chat-input"
+                disabled={isChatLoading}
+              />
+              <button type="submit" className="chat-send-btn" disabled={isChatLoading || !chatMessage.trim()}>
+                <Send size={18} />
+              </button>
+            </form>
+          </div>
+        )}
       </div>
     </motion.div>
   );
