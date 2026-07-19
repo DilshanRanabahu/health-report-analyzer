@@ -20,63 +20,6 @@ An advanced AI-powered web application that analyzes complex medical reports (PD
 
 The system utilizes a secure 3-tier architecture with a dedicated API Gateway for handling authentication and proxying requests to the Core AI Backend.
 
-```text
-// 1. User Interaction & Authentication
-User [icon: user]
-UI (React Frontend) [icon: react, color: blue]
-
-User > UI (React Frontend): Login & Uploads Report
-
-// 2. API Gateway & Security
-API Gateway Group [color: orange] {
-  API Manager (Port 8000) [icon: server]
-  Auth Database (auth.db) [icon: database]
-  JWT (HttpOnly Cookie) [icon: lock]
-}
-
-UI (React Frontend) <> API Manager (Port 8000): Authenticates & Sends APIs
-API Manager (Port 8000) > Auth Database (auth.db): Verifies Credentials
-API Manager (Port 8000) > JWT (HttpOnly Cookie): Issues Secure Token
-
-// 3. Core Processing & Storage
-Backend System [color: green] {
-  FastAPI Backend (Port 8001) [icon: python]
-  SQLite Database (health_reports.db) [icon: database]
-  Local Storage (/uploads) [icon: folder]
-  PyMuPDF (PDF Converter) [icon: file-pdf]
-}
-
-API Manager (Port 8000) > FastAPI Backend (Port 8001): Proxies Request (X-User-Id)
-FastAPI Backend (Port 8001) > Local Storage (/uploads): Saves File
-FastAPI Backend (Port 8001) > PyMuPDF (PDF Converter): Converts PDF to Image
-
-// 4. Multi-Agent AI System
-CrewAI Orchestration [icon: users, color: purple] {
-  Document Reader [icon: bot, color: purple]
-  Health Analyst [icon: bot, color: purple]
-  Friendly Explainer [icon: bot, color: purple]
-}
-
-GitHub Models (GPT-4o-mini) [icon: github]
-Vision Tool [icon: camera]
-
-FastAPI Backend (Port 8001) > CrewAI Orchestration: Triggers Tasks
-Document Reader <> Vision Tool: Extracts Text from Image
-Document Reader <> GitHub Models (GPT-4o-mini): Analyzes Image
-Document Reader > Health Analyst: Task 1 Done (Raw Text)
-Health Analyst <> GitHub Models (GPT-4o-mini): Applies WHO Guidelines
-Health Analyst > Friendly Explainer: Task 2 Done (Medical Analysis)
-Friendly Explainer <> GitHub Models (GPT-4o-mini): Translates to Sinhala
-Friendly Explainer > FastAPI Backend (Port 8001): Returns Final Report
-
-// 5. User-Isolated History
-FastAPI Backend (Port 8001) > SQLite Database (health_reports.db): Saves Result (with user_id)
-FastAPI Backend (Port 8001) > UI (React Frontend): Shows Formatted Report
-
-UI (React Frontend) > API Manager (Port 8000): GET /reports (Loads History)
-API Manager (Port 8000) > FastAPI Backend (Port 8001): Proxies Request
-FastAPI Backend (Port 8001) > SQLite Database (health_reports.db): Fetches User's Private History
-```
 
 ## 🛠️ Technology Stack
 
@@ -128,6 +71,13 @@ npm install
 npm run dev
 ```
 The frontend will start on `http://localhost:5173`. To use the app, navigate to `http://localhost:8000/login` in your browser.
+
+### 5. Local Development using Docker
+If you want to run the application locally for development with Docker (with hot-reloading enabled), simply run:
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+The Frontend will be available at `http://localhost:5173` and the API at `http://localhost:8000`. Any code changes you make will be automatically reflected without needing to restart the containers!
 
 ## 🛡️ Privacy & Security Note
 *By default, the AI is prompted to ignore/redact Personally Identifiable Information (PII). However, since this uses a Cloud LLM API, it is recommended to crop out patient names and ID numbers from images before uploading to ensure maximum privacy.*

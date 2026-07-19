@@ -29,7 +29,7 @@ function App() {
         fetchHistory();
       } catch (err) {
         console.error("Auth failed, redirecting to login");
-        window.location.href = "http://localhost:8000/login";
+        window.location.href = import.meta.env.VITE_LOGIN_URL || "http://localhost:8000/login";
       } finally {
         setAuthLoading(false);
       }
