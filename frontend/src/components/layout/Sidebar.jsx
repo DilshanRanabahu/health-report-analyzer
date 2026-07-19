@@ -43,10 +43,10 @@ export default function Sidebar({ reportsHistory, selectedReport, loading, viewR
             try {
               const { authApi } = await import('../../services/api');
               await authApi.logout();
-              window.location.href = "http://localhost:8000/login";
+              window.location.href = import.meta.env.VITE_LOGIN_URL || "http://localhost:8000/login";
             } catch (e) {
               console.error("Logout failed", e);
-              window.location.href = "http://localhost:8000/login";
+              window.location.href = import.meta.env.VITE_LOGIN_URL || "http://localhost:8000/login";
             }
           }}
           style={{ width: '100%', padding: '0.75rem', background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: '8px', cursor: 'pointer' }}

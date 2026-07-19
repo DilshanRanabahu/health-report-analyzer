@@ -15,9 +15,10 @@ models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI(title="HealthReport API Manager")
 
 # CORS setup for the Frontend
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=cors_origins,
     allow_credentials=True, # Required for HTTP-Only cookies
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,7 +29,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 # Backend URL to proxy requests to
-BACKEND_URL = "http://localhost:8001"
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8001")
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -71,7 +72,8 @@ async def do_login(
     access_token = auth.create_access_token(data={"sub": user.username})
     
     # Redirect to Frontend
-    redirect_res = RedirectResponse(url="http://localhost:5173", status_code=302)
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    redirect_res = RedirectResponse(url=frontend_url, status_code=302)
     # Set HTTP-Only Cookie
     redirect_res.set_cookie(
         key="access_token",
