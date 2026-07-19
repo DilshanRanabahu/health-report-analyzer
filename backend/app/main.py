@@ -5,10 +5,8 @@ from backend.app.api.routes import router as api_router
 from backend.app.db.database import engine, Base
 import os
 
-# Create DB tables
 Base.metadata.create_all(bind=engine)
 
-# Ensure uploads directory exists
 os.makedirs("backend/uploads", exist_ok=True)
 
 app = FastAPI(title="Medical Report Translator API")
@@ -21,7 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Serve uploaded files statically
 app.mount("/uploads", StaticFiles(directory="backend/uploads"), name="uploads")
 
 app.include_router(api_router, prefix="/api")

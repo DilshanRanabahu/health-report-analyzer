@@ -1,106 +1,55 @@
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from typing import List
+
 from backend.app.db.database import get_db
-from backend.app.db.models import Report
-from crewai import Crew
-from backend.app.agents.medical_agents import document_reader, health_analyst, dietitian_agent, friendly_explainer
-from backend.app.agents.tasks import create_medical_tasks
-from backend.app.core.config import GITHUB_TOKEN
-from pydantic import BaseModel
-from openai import OpenAI
-import os
-import shutil
-import uuid
+from backend.app.schemas import ChatRequest, ReportResponse, ChatMessageResponse
+from backend.app.services.ai_service import ai_service
+from backend.app.services.report_service import report_service
+from backend.app.services.chat_service import chat_service
 
 router = APIRouter()
 
-UPLOAD_DIR = "backend/uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from datetime import timezone
 
 @router.post("/analyze-report")
 async def analyze_report(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    allowed_extensions = ('.pdf', '.jpg', '.jpeg', '.png')
-    if not file.filename.lower().endswith(allowed_extensions):
-        return JSONResponse(status_code=400, content={"error": "Only PDF, JPG, or PNG files are supported."})
-        
-    unique_filename = f"{uuid.uuid4().hex}_{file.filename}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
-    
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        file_path = report_service.save_upload_file(file)
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": str(e)})
         
     try:
-        tasks = create_medical_tasks(file_path)
+        output_text = await ai_service.analyze_medical_report(file_path)
+        report_title, clean_text = report_service.extract_title(output_text, file.filename)
         
-        medical_crew = Crew(
-            agents=[document_reader, health_analyst, dietitian_agent, friendly_explainer],
-            tasks=tasks,
-            verbose=True
-        )
-        
-        print("Starting Medical Analysis Crew...")
-        result = await medical_crew.kickoff_async()
-        
-        output_text = str(result.raw) if hasattr(result, 'raw') else str(result)
-        
-        if "ERROR:" in output_text:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            return JSONResponse(
-                status_code=400, 
-                content={"error": "The AI could not extract medical data from this document. Please ensure it is a clear medical report."}
-            )
-            
-        report_title = file.filename
-        lines = output_text.split('\n')
-        
-        for i, line in enumerate(lines):
-            if line.strip().startswith("TITLE:"):
-                report_title = line.replace("TITLE:", "").strip()
-                lines.pop(i)
-                output_text = '\n'.join(lines).strip()
-                break
-                
-        if output_text.startswith("```markdown"):
-            output_text = output_text[11:].strip()
-        elif output_text.startswith("```"):
-            output_text = output_text[3:].strip()
-            
-        if output_text.endswith("```"):
-            output_text = output_text[:-3].strip()
-        
-        new_report = Report(
-            filename=report_title,
-            file_path=file_path,
-            result=output_text
-        )
-        db.add(new_report)
-        db.commit()
-        db.refresh(new_report)
+        new_report = report_service.create_report(db, report_title, file_path, clean_text)
         
         return {
             "status": "success", 
             "id": new_report.id,
             "filename": new_report.filename,
-            "date": new_report.date.isoformat(),
+            "date": new_report.date.replace(tzinfo=timezone.utc).isoformat() if new_report.date else None,
             "result": new_report.result
         }
         
+    except ValueError as e:
+        report_service.delete_physical_file(file_path)
+        return JSONResponse(status_code=400, content={"error": str(e)})
     except Exception as e:
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        report_service.delete_physical_file(file_path)
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@router.get("/reports")
+@router.get("/reports", response_model=List[ReportResponse])
 def get_reports(db: Session = Depends(get_db)):
-    reports = db.query(Report).order_by(Report.date.desc()).all()
+    reports = report_service.get_all_reports(db)
     return [
         {
             "id": r.id, 
             "filename": r.filename, 
-            "date": r.date.strftime("%B %d, %Y - %H:%M:%S") if r.date else "Unknown", 
+            "date": r.date.replace(tzinfo=timezone.utc).isoformat() if r.date else None, 
             "result": r.result
         } 
         for r in reports
@@ -109,51 +58,29 @@ def get_reports(db: Session = Depends(get_db)):
 
 @router.delete("/reports/{report_id}")
 def delete_report(report_id: int, db: Session = Depends(get_db)):
-    report = db.query(Report).filter(Report.id == report_id).first()
-    if not report:
-        raise HTTPException(status_code=404, detail="Report not found")
-        
-    if report.file_path and os.path.exists(report.file_path):
-        try:
-            os.remove(report.file_path)
-        except Exception as e:
-            print(f"Failed to delete file {report.file_path}: {e}")
-            
-    db.delete(report)
-    db.commit()
-    
+    report_service.delete_report(db, report_id)
     return {"status": "success", "message": "Report deleted"}
 
-class ChatRequest(BaseModel):
-    message: str
-    report_context: str
-    history: list = []
 
 @router.post("/chat")
-def chat_with_report(request: ChatRequest):
-    client = OpenAI(
-        base_url="https://models.inference.ai.azure.com",
-        api_key=GITHUB_TOKEN,
-    )
-    
-    system_prompt = f"""You are a helpful Medical and Dietary AI assistant from Sri Lanka. 
-You are chatting with a patient about their medical report.
-Answer the user's questions in simple Sinhala based on the provided Medical Report Context.
-If the user asks a question completely unrelated to health, medicine, diet, or the report (e.g. sports, movies, politics), politely refuse to answer.
-
-Medical Report Context:
-{request.report_context}
-"""
-    messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(request.history)
-    messages.append({"role": "user", "content": request.message})
-    
+def chat_with_report(request: ChatRequest, db: Session = Depends(get_db)):
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            temperature=0.3
+        chat_service.save_message(db, request.report_id, "user", request.message)
+        
+        assistant_content = ai_service.generate_chat_response(
+            request.report_context, 
+            request.history, 
+            request.message
         )
-        return {"response": response.choices[0].message.content}
+        
+        chat_service.save_message(db, request.report_id, "assistant", assistant_content)
+        
+        return {"response": assistant_content}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.get("/reports/{report_id}/chat", response_model=List[ChatMessageResponse])
+def get_chat_history(report_id: int, db: Session = Depends(get_db)):
+    messages = chat_service.get_chat_history(db, report_id)
+    return [{"role": msg.role, "content": msg.content} for msg in messages]

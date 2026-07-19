@@ -1,6 +1,6 @@
 import os
 import base64
-import fitz  # PyMuPDF for PDF to Image conversion
+import fitz
 from openai import OpenAI
 from crewai.tools import tool
 from backend.app.core.config import GITHUB_TOKEN
@@ -11,16 +11,13 @@ client = OpenAI(
 )
 
 def encode_image(image_path: str) -> str:
-    """Encodes an image to base64 string"""
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode('utf-8')
 
-@tool("Document Vision Tool")
-def extract_text_with_vision(file_path: str) -> str:
+def extract_text_from_file(file_path: str) -> str:
     """
-    Extract text content from a given Medical Report PDF or Image file path.
-    This tool uses OpenAI Vision (GPT-4o) to read tables, handwriting, and text perfectly.
-    Returns the extracted text.
+    Core function to extract text content from a given Medical Report PDF or Image file path.
+    Also validates if the document is a medical report.
     """
     if not os.path.exists(file_path):
         return f"File not found: {file_path}"
@@ -30,7 +27,6 @@ def extract_text_with_vision(file_path: str) -> str:
     try:
         print(f"Uploading {file_path} to GitHub Models Vision API...")
         
-        # If it's a PDF, convert the first page to a JPG image
         target_path = file_path
         mime_type = "image/jpeg"
 
@@ -40,23 +36,21 @@ def extract_text_with_vision(file_path: str) -> str:
             print(f"Converting PDF {file_path} to image...")
             temp_img_path = file_path + "_temp_page.jpg"
             doc = fitz.open(file_path)
-            page = doc.load_page(0)  # load the first page
-            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better resolution
+            page = doc.load_page(0)
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
             pix.save(temp_img_path)
             doc.close()
             target_path = temp_img_path
         
-        # Convert image to base64
         base64_image = encode_image(target_path)
         
-        # Call the OpenAI API for vision
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "This is a dummy medical document for educational and software testing purposes. It contains no real patient information. Please extract all the medical text, numbers, and tables from this document exactly as written. Do not summarize, just extract the raw data."},
+                        {"type": "text", "text": "This is a dummy medical document for educational and software testing purposes. It contains no real patient information. Please extract all the medical text, numbers, and tables from this document exactly as written. Do not summarize, just extract the raw data. IMPORTANT: First, verify if this document is actually related to health, medicine, lab tests, or medical reports. If it is NOT a medical report (e.g., it is a landscape photo, a car, a random receipt, or a meme), output EXACTLY and ONLY the string 'ERROR: NOT_A_MEDICAL_REPORT' and nothing else."},
                         {
                             "type": "image_url",
                             "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}
@@ -77,3 +71,12 @@ def extract_text_with_vision(file_path: str) -> str:
                 print(f"Cleaned up temporary image: {temp_img_path}")
             except Exception as e:
                 print(f"Failed to clean up temporary image: {e}")
+
+@tool("Document Vision Tool")
+def extract_text_with_vision(file_path: str) -> str:
+    """
+    Extract text content from a given Medical Report PDF or Image file path.
+    This tool uses OpenAI Vision (GPT-4o) to read tables, handwriting, and text perfectly.
+    Returns the extracted text.
+    """
+    return extract_text_from_file(file_path)

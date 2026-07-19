@@ -1,0 +1,98 @@
+/* Professional A4 Print Template Styles */
+.pdf-print-container {
+  width: 210mm; /* A4 width */
+  min-height: 297mm; /* A4 height */
+  padding: 20mm;
+  background-color: #0f172a;
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  box-sizing: border-box;
+}
+
+.pdf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 20px;
+}
+
+.pdf-brand h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #60a5fa; /* Light blue accent */
+}
+
+.pdf-brand p {
+  margin: 5px 0 0 0;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.pdf-meta p {
+  margin: 2px 0;
+  font-size: 13px;
+  color: #cbd5e1;
+  text-align: right;
+}
+
+.pdf-divider {
+  border: 0;
+  border-top: 2px solid #334155;
+  margin-bottom: 25px;
+}
+
+.pdf-content {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #e2e8f0;
+}
+
+/* Markdown styling inside PDF */
+.pdf-content h2 {
+  font-size: 20px;
+  color: #f1f5f9;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 5px;
+}
+
+.pdf-content h3 {
+  font-size: 16px;
+  color: #f8fafc;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.pdf-content p {
+  margin-bottom: 12px;
+}
+
+.pdf-content ul, .pdf-content ol {
+  padding-left: 20px;
+  margin-bottom: 16px;
+}
+
+.pdf-content li {
+  margin-bottom: 6px;
+}
+
+.pdf-content strong {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.pdf-footer {
+  margin-top: 50px;
+  padding-top: 20px;
+  border-top: 1px dashed #475569;
+  font-size: 11px;
+  color: #94a3b8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pdf-page-number {
+  font-weight: 600;
+}

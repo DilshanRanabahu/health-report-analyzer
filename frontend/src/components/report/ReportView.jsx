@@ -3,19 +3,22 @@ import { motion } from 'framer-motion';
 import { FileHeart, Download, MessageSquare, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import html2pdf from 'html2pdf.js';
-import axios from 'axios';
+
+import { useChat } from '../../hooks/useChat';
+import PrintTemplate from './PrintTemplate';
 
 export default function ReportView({ selectedReport }) {
   const [activeTab, setActiveTab] = useState('report');
-  const [chatHistory, setChatHistory] = useState([]);
   const [chatMessage, setChatMessage] = useState("");
-  const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef(null);
+  const printTemplateRef = useRef(null);
+
+  const { chatHistory, isChatLoading, fetchHistory, sendMessage } = useChat(selectedReport);
 
   useEffect(() => {
     setActiveTab('report');
-    setChatHistory([{ role: 'assistant', content: "ආයුබෝවන්! මම ඔබේ වෛද්‍ය සහායක. මේ රිපෝට් එක ගැන හරි, කෑම බීම ගැන හරි මොනවා හරි අහන්න තියෙනවද?" }]);
-  }, [selectedReport]);
+    fetchHistory();
+  }, [selectedReport, fetchHistory]);
 
   useEffect(() => {
     if (activeTab === 'chat' && chatEndRef.current) {
@@ -26,21 +29,18 @@ export default function ReportView({ selectedReport }) {
   if (!selectedReport) return null;
 
   const handleDownloadPDF = () => {
-    const element = document.getElementById('pdf-content');
+    const element = printTemplateRef.current;
+    if (!element) return;
     
-    element.classList.add('pdf-export-mode');
-
     const opt = {
-      margin:       [15, 15, 15, 15],
-      filename:     `${selectedReport.filename.split('.')[0]}_AI_Analysis.pdf`,
+      margin:       0,
+      filename:     `Medical_Report_${selectedReport.id || 'export'}.pdf`,
       image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true, logging: false },
+      html2canvas:  { scale: 2, useCORS: true },
       jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(element).save().then(() => {
-      element.classList.remove('pdf-export-mode');
-    });
+    html2pdf().set(opt).from(element).save();
   };
 
   const formatDate = (dateString) => {
@@ -63,22 +63,7 @@ export default function ReportView({ selectedReport }) {
 
     const userMessage = chatMessage;
     setChatMessage("");
-    setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
-    setIsChatLoading(true);
-
-    try {
-      const response = await axios.post("http://127.0.0.1:8000/api/chat", {
-        message: userMessage,
-        report_context: selectedReport.result,
-        history: chatHistory.slice(1) // skip the initial greeting
-      });
-      
-      setChatHistory(prev => [...prev, { role: 'assistant', content: response.data.response }]);
-    } catch (error) {
-      setChatHistory(prev => [...prev, { role: 'assistant', content: "සමාවෙන්න, මට ඒ ප්‍රශ්නයට පිළිතුරු දීමට අපහසුයි. නැවත උත්සාහ කරන්න." }]);
-    } finally {
-      setIsChatLoading(false);
-    }
+    await sendMessage(userMessage);
   };
 
   const reportText = selectedReport.result || "";
@@ -100,24 +85,31 @@ export default function ReportView({ selectedReport }) {
       style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}
     >
       <div className="result-container">
-        <div className="result-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <FileHeart size={28} style={{ color: 'var(--accent)' }} /> 
+        <div className="result-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '2rem' }}>
+          <div style={{ maxWidth: '70%', minWidth: 0 }}>
+            <h2 style={{ marginBottom: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {selectedReport.filename}
             </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-              Analyzed on {formatDate(selectedReport.date)}
-            </p>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              {formatDate(selectedReport.date)}
+            </span>
           </div>
-          <button 
-            className="download-pdf-btn" 
-            onClick={handleDownloadPDF}
-            title="Download as PDF"
-          >
-            <Download size={20} />
-            <span>Export PDF</span>
-          </button>
+          {activeTab === 'report' && (
+            <button 
+              onClick={handleDownloadPDF} 
+              className="btn-primary" 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                width: 'fit-content', 
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+            >
+              <Download size={18} /> Download PDF
+            </button>
+          )}
         </div>
         
         <div className="tab-navigation">
@@ -182,6 +174,7 @@ export default function ReportView({ selectedReport }) {
           </div>
         )}
       </div>
+      <PrintTemplate ref={printTemplateRef} report={selectedReport} medicalPart={medicalPart} />
     </motion.div>
   );
 }
