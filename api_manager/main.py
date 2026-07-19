@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 import httpx
 import os
 
@@ -84,6 +85,32 @@ async def do_login(
     )
     return redirect_res
 
+class MobileLoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/mobile/login")
+async def mobile_login(login_req: MobileLoginRequest, db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.username == login_req.username).first()
+    if not user or not auth.verify_password(login_req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    access_token = auth.create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/api/mobile/register")
+async def mobile_register(register_req: MobileLoginRequest, db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.username == register_req.username).first()
+    if user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    hashed_password = auth.get_password_hash(register_req.password)
+    new_user = models.User(username=register_req.username, password_hash=hashed_password)
+    db.add(new_user)
+    db.commit()
+    
+    return {"message": "User registered successfully"}
+
 @app.post("/api/logout")
 async def logout():
     response = JSONResponse(content={"message": "Logged out successfully"})
@@ -92,7 +119,13 @@ async def logout():
 
 @app.get("/api/me")
 async def get_current_user(request: Request, db: Session = Depends(database.get_db)):
-    token = request.cookies.get("access_token")
+    # Try Authorization header first (for Mobile apps), fallback to cookie (for Web)
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header
+    else:
+        token = request.cookies.get("access_token")
+        
     if not token or not token.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -112,7 +145,12 @@ async def get_current_user(request: Request, db: Session = Depends(database.get_
 @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
 async def proxy_api(path: str, request: Request):
     # 1. Verify authentication
-    token = request.cookies.get("access_token")
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header
+    else:
+        token = request.cookies.get("access_token")
+        
     if not token or not token.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     
