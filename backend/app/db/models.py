@@ -7,6 +7,7 @@ class Report(Base):
     __tablename__ = "reports"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True)
     filename = Column(String, index=True)
     file_path = Column(String)
     result = Column(Text)

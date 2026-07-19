@@ -8,18 +8,39 @@ import Loader from './components/common/Loader';
 import { useToast } from './context/ToastContext';
 import { useReports } from './hooks/useReports';
 
+import { authApi } from './services/api';
+
 function App() {
   const { addToast } = useToast();
   
   const [currentView, setCurrentView] = useState('upload');
   const [selectedReport, setSelectedReport] = useState(null);
   const [file, setFile] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const { reportsHistory, loading, fetchHistory, uploadReport, deleteReport } = useReports(addToast);
 
   useEffect(() => {
-    fetchHistory();
+    const checkAuth = async () => {
+      try {
+        await authApi.checkAuth();
+        setIsAuthenticated(true);
+        fetchHistory();
+      } catch (err) {
+        console.error("Auth failed, redirecting to login");
+        window.location.href = "http://localhost:8000/login";
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+    
+    checkAuth();
   }, [fetchHistory]);
+
+  if (authLoading) {
+    return <Loader />;
+  }
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {

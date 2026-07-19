@@ -36,6 +36,24 @@ export default function Sidebar({ reportsHistory, selectedReport, loading, viewR
           ))
         )}
       </div>
+      
+      <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-glass)' }}>
+        <button 
+          onClick={async () => {
+            try {
+              const { authApi } = await import('../../services/api');
+              await authApi.logout();
+              window.location.href = "http://localhost:8000/login";
+            } catch (e) {
+              console.error("Logout failed", e);
+              window.location.href = "http://localhost:8000/login";
+            }
+          }}
+          style={{ width: '100%', padding: '0.75rem', background: 'transparent', border: '1px solid var(--danger)', color: 'var(--danger)', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          Logout
+        </button>
+      </div>
     </aside>
   );
 }

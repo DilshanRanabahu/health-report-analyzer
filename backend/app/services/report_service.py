@@ -55,27 +55,35 @@ class ReportService:
             
         return report_title, output_text
 
-    def create_report(self, db: Session, filename: str, file_path: str, result_text: str) -> Report:
+    def create_report(self, db: Session, filename: str, file_path: str, result_text: str, user_id: str) -> Report:
         """Creates a new report record in the database."""
         new_report = Report(
             filename=filename,
             file_path=file_path,
-            result=result_text
+            result=result_text,
+            user_id=user_id
         )
         db.add(new_report)
         db.commit()
         db.refresh(new_report)
         return new_report
 
-    def get_all_reports(self, db: Session) -> list[Report]:
-        """Retrieves all reports, ordered by date descending."""
-        return db.query(Report).order_by(Report.date.desc()).all()
+    def get_all_reports(self, db: Session, user_id: str) -> list[Report]:
+        """Retrieves all reports for a specific user, ordered by date descending."""
+        return db.query(Report).filter(Report.user_id == user_id).order_by(Report.date.desc()).all()
 
-    def delete_report(self, db: Session, report_id: int):
-        """Deletes a report from the database and removes its physical file."""
+    def verify_ownership(self, db: Session, report_id: int, user_id: str) -> Report:
+        """Verifies that a report belongs to the user."""
         report = db.query(Report).filter(Report.id == report_id).first()
         if not report:
             raise HTTPException(status_code=404, detail="Report not found")
+        if report.user_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this report")
+        return report
+
+    def delete_report(self, db: Session, report_id: int, user_id: str):
+        """Deletes a report from the database and removes its physical file."""
+        report = self.verify_ownership(db, report_id, user_id)
             
         self.delete_physical_file(report.file_path)
             

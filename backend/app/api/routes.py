@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, Header
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from typing import List
@@ -14,7 +14,7 @@ router = APIRouter()
 from datetime import timezone
 
 @router.post("/analyze-report")
-async def analyze_report(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def analyze_report(file: UploadFile = File(...), db: Session = Depends(get_db), x_user_id: str = Header(...)):
     try:
         file_path = report_service.save_upload_file(file)
     except ValueError as e:
@@ -24,7 +24,7 @@ async def analyze_report(file: UploadFile = File(...), db: Session = Depends(get
         output_text = await ai_service.analyze_medical_report(file_path)
         report_title, clean_text = report_service.extract_title(output_text, file.filename)
         
-        new_report = report_service.create_report(db, report_title, file_path, clean_text)
+        new_report = report_service.create_report(db, report_title, file_path, clean_text, x_user_id)
         
         return {
             "status": "success", 
@@ -43,8 +43,8 @@ async def analyze_report(file: UploadFile = File(...), db: Session = Depends(get
 
 
 @router.get("/reports", response_model=List[ReportResponse])
-def get_reports(db: Session = Depends(get_db)):
-    reports = report_service.get_all_reports(db)
+def get_reports(db: Session = Depends(get_db), x_user_id: str = Header(...)):
+    reports = report_service.get_all_reports(db, x_user_id)
     return [
         {
             "id": r.id, 
@@ -57,14 +57,15 @@ def get_reports(db: Session = Depends(get_db)):
 
 
 @router.delete("/reports/{report_id}")
-def delete_report(report_id: int, db: Session = Depends(get_db)):
-    report_service.delete_report(db, report_id)
+def delete_report(report_id: int, db: Session = Depends(get_db), x_user_id: str = Header(...)):
+    report_service.delete_report(db, report_id, x_user_id)
     return {"status": "success", "message": "Report deleted"}
 
 
 @router.post("/chat")
-def chat_with_report(request: ChatRequest, db: Session = Depends(get_db)):
+def chat_with_report(request: ChatRequest, db: Session = Depends(get_db), x_user_id: str = Header(...)):
     try:
+        report_service.verify_ownership(db, request.report_id, x_user_id)
         chat_service.save_message(db, request.report_id, "user", request.message)
         
         assistant_content = ai_service.generate_chat_response(
@@ -81,6 +82,7 @@ def chat_with_report(request: ChatRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/reports/{report_id}/chat", response_model=List[ChatMessageResponse])
-def get_chat_history(report_id: int, db: Session = Depends(get_db)):
+def get_chat_history(report_id: int, db: Session = Depends(get_db), x_user_id: str = Header(...)):
+    report_service.verify_ownership(db, report_id, x_user_id)
     messages = chat_service.get_chat_history(db, report_id)
     return [{"role": msg.role, "content": msg.content} for msg in messages]

@@ -24,3 +24,8 @@ node_modules/
 dist/
 dist-ssr/
 *.local
+
+# Database and Uploads
+health_reports.db
+backend/uploads/
+uploads/
