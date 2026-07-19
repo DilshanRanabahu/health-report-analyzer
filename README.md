@@ -2,7 +2,7 @@
 
 An advanced AI-powered web application that analyzes complex medical reports (PDF/Images) and translates the medical jargon into a simple, easy-to-understand Sinhala explanation using a multi-agent AI system. 
 
-![Architecture Diagram](architecture%20diagram.png)
+![Architecture Diagram](architecture_diagram_v2.png)
 
 ## 🚀 Key Features
 
